@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Perpetual Futures Forecast</title>
+<style>
+:root{
+  --bg:#f6f5f1; --panel:#ffffff; --ink:#1d1f24; --muted:#636872; --line:#e2e0d8;
+  --accent:#1f5fbf; --accent-soft:#e3ecfa; --good:#1d7f4e; --good-soft:#e1f2e8; --bad:#b4442c; --bad-soft:#f8e6e1;
+  --bar:#1f5fbf; --bar2:#9db7e3; --base:#b9b6ad;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#15171b; --panel:#1d2026; --ink:#eceef2; --muted:#9aa1ad; --line:#2d313a;
+    --accent:#6ea2f2; --accent-soft:#1f2c42; --good:#5cc48e; --good-soft:#1b3328; --bad:#ec8a72; --bad-soft:#3a2420;
+    --bar:#6ea2f2; --bar2:#3c5a8a; --base:#5a5e66;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#15171b; --panel:#1d2026; --ink:#eceef2; --muted:#9aa1ad; --line:#2d313a;
+  --accent:#6ea2f2; --accent-soft:#1f2c42; --good:#5cc48e; --good-soft:#1b3328; --bad:#ec8a72; --bad-soft:#3a2420;
+  --bar:#6ea2f2; --bar2:#3c5a8a; --base:#5a5e66;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;}
+.deck{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px}
+.slide{display:none;width:min(1200px,100%);aspect-ratio:16/9;max-height:calc(100vh - 70px);
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:44px 56px;
+  overflow:auto;flex-direction:column}
+.slide.on{display:flex}
+.kicker{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:8px}
+h1{font-size:40px;line-height:1.15;margin:0 0 14px;font-weight:700}
+h2{font-size:30px;line-height:1.2;margin:0 0 22px;font-weight:700}
+p,li{font-size:19px;line-height:1.5;margin:0}
+ul{margin:0;padding-left:22px} li{margin:6px 0}
+.muted{color:var(--muted)}
+.small{font-size:15px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:var(--bg)}
+.card h3{margin:0 0 8px;font-size:18px}
+.card p,.card li{font-size:16px}
+.big{font-size:56px;font-weight:700;line-height:1;color:var(--accent)}
+.stat .lbl{font-size:15px;color:var(--muted);margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:16px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:600;font-size:14px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.hl td{font-weight:700;background:var(--accent-soft)}
+.pill{display:inline-block;white-space:nowrap;padding:2px 10px;border-radius:999px;font-size:14px;font-weight:600}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.neu{background:var(--line);color:var(--muted)}
+.bars{display:flex;flex-direction:column;gap:9px;margin-top:6px}
+.brow{display:grid;grid-template-columns:230px 1fr 64px;align-items:center;gap:12px;font-size:16px}
+.btrack{height:20px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.bfill{height:100%;background:var(--bar)} .bfill.base{background:var(--base)} .bfill.soft{background:var(--bar2)}
+.bval{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.heat td.n{font-weight:600}
+.flow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.flow .step{flex:1;min-width:150px;border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--bg)}
+.flow .step b{display:block;font-size:16px;margin-bottom:4px}
+.flow .step span{font-size:14px;color:var(--muted)}
+.gantt{display:flex;flex-direction:column;gap:8px}
+.grow{display:grid;grid-template-columns:190px 1fr;align-items:center;gap:14px;font-size:15px}
+.gtrack{position:relative;height:30px}
+.seg{position:absolute;top:0;bottom:0;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden}
+.seg.tr{background:var(--bar2);color:var(--ink)} .seg.sc{border:2px solid var(--accent);color:var(--accent);background:var(--accent-soft)}
+.seg.per{background:var(--line);color:var(--ink)} .seg.test{border:2px dashed var(--muted);color:var(--muted)}
+.ticks{position:relative;height:18px;font-size:12px;color:var(--muted)}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.steps{display:flex;flex-direction:column;gap:6px}
+.st{display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start}
+.st .num{width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
+.st p{font-size:15px;line-height:1.4}
+.formula{font-family:"Cambria Math","STIX Two Math",Georgia,serif;font-size:17px;margin:4px 0 2px}
+.wt{font-size:13px;table-layout:fixed}
+.wt th,.wt td{padding:4px 2px;text-align:center;border-bottom:1px solid var(--line)}
+.wt td.wl{text-align:left;width:150px;white-space:nowrap;padding-left:4px}
+.wt .wi{border-left:2px solid var(--panel)}
+.wt td.wc{font-variant-numeric:tabular-nums;font-weight:600}
+.wt .wm{width:56px;border-left:2px solid var(--line)}
+.foot{margin-top:auto;padding-top:14px;font-size:13px;color:var(--muted)}
+.nav{position:fixed;bottom:14px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:14px;font-size:14px;color:var(--muted)}
+.nav button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 14px;font-size:14px;cursor:pointer}
+.nav button:hover{border-color:var(--accent)}
+.prog{position:fixed;top:0;left:0;height:3px;background:var(--accent);transition:width .2s}
+@media (max-width:760px){
+  .slide{aspect-ratio:auto;max-height:none;height:calc(100vh - 70px);padding:22px 16px}
+  .grid2,.grid3{grid-template-columns:1fr}
+  h1{font-size:28px} h2{font-size:22px} p,li{font-size:16px}
+  .brow{grid-template-columns:120px 1fr 54px;font-size:13px}
+  .big{font-size:40px}
+}
+@media print{
+  .nav,.prog{display:none} .deck{position:static;display:block;padding:0}
+  .slide{display:flex !important;page-break-after:always;max-height:none;border:none;border-radius:0;width:100%}
+}
+</style>
+</head>
+<body>
+<div class="prog" id="prog"></div>
+<div class="deck" id="deck">
+
+<section class="slide">
+  <div class="kicker">CMF · HFT · Task 2</div>
+  <h1>Short-Term Return Prediction for Binance Perpetual Futures</h1>
+  <p class="muted">A forecast every 500 ms for BTC, ETH, SOL and 1000PEPE over 500 ms, 2 s and 8 s</p>
+  <div class="grid3" style="margin-top:40px">
+    <div class="card stat"><div class="big">0.2346</div><div class="lbl">validation SCORE (ensemble of 6 models)</div></div>
+    <div class="card stat"><div class="big">+28%</div><div class="lbl">over the organizers' baseline (0.1838)</div></div>
+    <div class="card stat"><div class="big">0</div><div class="lbl">leaks: 44 data-truncation probes on real days, plus a check of every feature</div></div>
+  </div>
+  <div class="foot">Nikolay Meshcheryakov · github.com/NikolayMeshcheryakov/cmf-hft-short-horizon</div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Task</div>
+  <h2>What we predict and how it is scored</h2>
+  <div class="grid2">
+    <div>
+      <ul>
+        <li>Every 500 ms: 172,800 points per day per instrument</li>
+        <li>Target: <b>y<sub>H</sub>(t) = ln(mid(t+10ms+H) / mid(t+10ms))</b>, H ∈ {500 ms, 2 s, 8 s}; 10 ms models order latency</li>
+        <li>4 target perpetuals; features from 20 instruments: perpetuals, spot pairs, stablecoin rates</li>
+        <li>Strict causality: at time t only data with ts ≤ t; a violation means disqualification</li>
+      </ul>
+    </div>
+    <div>
+      <div class="card">
+        <h3>Metric</h3>
+        <ol style="margin:0;padding-left:20px">
+          <li>target clipped: <span class="formula">y<sub>clip</sub> = min(max(y, q<sub>0.1%</sub>), q<sub>99.9%</sub>)</span>, percentiles of the training period</li>
+          <li>Pearson correlation per day for each instrument × horizon pair:<div class="formula">r = Σ(p − p̄)(y − ȳ) / √( Σ(p − p̄)² · Σ(y − ȳ)² )</div></li>
+          <li>mean over days → mean over the 12 pairs</li>
+        </ol>
+        <p class="small muted" style="margin-top:8px">r = 1: forecast and return move together exactly; r = 0: no relation. Scale does not matter, only direction and relative size. Our 0.23 → explains ≈ 5% of the variance (0.23² ≈ 0.05).</p>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h3>Periods</h3>
+        <p>train 2025-09-15 – 2026-07-14 · validation 2026-07-15 – 2026-09-14 · test after submission</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Features</div>
+  <h2>76 features, all strictly causal</h2>
+  <div class="grid2">
+    <div>
+      <div class="card"><h3>Own order book and trades</h3>
+        <ul><li>best-quote and depth imbalances, microprice, spread and their dynamics</li>
+        <li>trade flow, trade counts, time since the last buy / sell, order flow imbalance; windows from 0.5 s to minutes</li>
+        <li>own returns, volatility and interactions with it</li></ul></div>
+      <div class="card" style="margin-top:14px"><h3>Other markets</h3>
+        <ul><li>returns of the other perpetuals, "missed moves" between grid points</li>
+        <li>spot: perpetual–spot gap in a common currency via the stablecoin rate</li>
+        <li>the same coin quoted in USDC: spot for BTC/ETH/SOL, the 1000PEPEUSDC perpetual for PEPE</li></ul></div>
+      <p class="muted small" style="margin-top:12px">83 features built, 7 removed by selection (next slide). Each one checked bit-for-bit: truncating the data at time T does not change its values before T.</p>
+    </div>
+    <div>
+      <p class="small muted" style="margin:0 0 8px">Top 10 for the ensemble: SCORE drop when the feature is shuffled</p>
+      <div class="bars">
+        <div class="brow"><span>imb1 — best bid/ask queue imbalance</span><div class="btrack"><div class="bfill " style="width:calc(0.0412/0.045*100%)"></div></div><span class="bval">0.0412</span></div>
+        <div class="brow"><span>sbasis_dev — perp–spot gap vs its 60 s mean</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0054/0.045*100%)"></div></div><span class="bval">0.0054</span></div>
+        <div class="brow"><span>ntrades_5 — number of trades, last 0.5 s</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0053/0.045*100%)"></div></div><span class="bval">0.0053</span></div>
+        <div class="brow"><span>depth_imb_12 — book imbalance within 1 bp of mid</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0048/0.045*100%)"></div></div><span class="bval">0.0048</span></div>
+        <div class="brow"><span>age_buy_s — seconds since the last buy trade</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0037/0.045*100%)"></div></div><span class="bval">0.0037</span></div>
+        <div class="brow"><span>alt_imb1 — queue imbalance on the USDC market</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0036/0.045*100%)"></div></div><span class="bval">0.0036</span></div>
+        <div class="brow"><span>simb1 — queue imbalance on the spot pair</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0036/0.045*100%)"></div></div><span class="bval">0.0036</span></div>
+        <div class="brow"><span>imb1 × volatility</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0035/0.045*100%)"></div></div><span class="bval">0.0035</span></div>
+        <div class="brow"><span>age_sell_s — seconds since the last sell trade</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0034/0.045*100%)"></div></div><span class="bval">0.0034</span></div>
+        <div class="brow"><span>mkt_ex_self — 0.5 s move of the other perpetuals</span><div class="btrack"><div class="bfill soft" style="width:calc(0.0025/0.045*100%)"></div></div><span class="bval">0.0025</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Feature selection</div>
+  <h2>Which groups the ensemble relies on</h2>
+  <div class="grid2">
+    <div>
+      <p class="small muted" style="margin:0 0 8px">Shuffle a whole group → SCORE drop · number of features. Shuffle = values randomly reordered within the day; the ensemble (trained on the training period) is not retrained.</p>
+      <div class="bars" style="gap:5px">
+        <div class="brow"><span>best quotes (L1 imbalance, microprice, spread) <span class="muted">· 6</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0678/0.07*100%)"></div></div><span class="bval">0.0678</span></div>
+        <div class="brow"><span>trades <span class="muted">· 13</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0267/0.07*100%)"></div></div><span class="bval">0.0267</span></div>
+        <div class="brow"><span>book depth <span class="muted">· 7</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0197/0.07*100%)"></div></div><span class="bval">0.0197</span></div>
+        <div class="brow"><span>spot (perp–spot gap) <span class="muted">· 8</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0080/0.07*100%)"></div></div><span class="bval">0.0080</span></div>
+        <div class="brow"><span>stablecoin-quoted spot gaps <span class="muted">· 15</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0071/0.07*100%)"></div></div><span class="bval">0.0071</span></div>
+        <div class="brow"><span>L1 dynamics (quote changes, queue depletion) <span class="muted">· 9</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0057/0.07*100%)"></div></div><span class="bval">0.0057</span></div>
+        <div class="brow"><span>USDC market (spot; PEPE: perp) <span class="muted">· 2</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0047/0.07*100%)"></div></div><span class="bval">0.0047</span></div>
+        <div class="brow"><span>own returns <span class="muted">· 3</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0046/0.07*100%)"></div></div><span class="bval">0.0046</span></div>
+        <div class="brow"><span>other perpetuals (lead returns, missed moves) <span class="muted">· 7</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0045/0.07*100%)"></div></div><span class="bval">0.0045</span></div>
+        <div class="brow"><span>order flow imbalance (OFI) <span class="muted">· 4</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0014/0.07*100%)"></div></div><span class="bval">0.0014</span></div>
+        <div class="brow"><span>volatility <span class="muted">· 2</span></span><div class="btrack"><div class="bfill soft" style="width:calc(0.0006/0.07*100%)"></div></div><span class="bval">0.0006</span></div>
+      </div>
+      <p class="muted small" style="margin-top:12px">3 validation days (07-15, 08-14, 09-13), every 5th point; SCORE on them 0.2497. Small values are noisy.</p>
+    </div>
+    <div>
+      <div class="card"><h3>A group is worth more than its features</h3>
+        <p>Trades: the group 0.0267, the best single feature 0.0053. Features in a group back each other up: shuffle one, and the others cover for it.</p></div>
+      <div class="card" style="margin-top:14px"><h3>Near zero</h3>
+        <p>The FDUSD spot gaps (6 features), savail, edge_usdc, missed_btc, timp_20: shuffling them does not change the score. Candidates for removal at the next stage.</p></div>
+      <div class="card" style="margin-top:14px"><h3>Removed earlier</h3>
+        <p>7 features (spread in ticks, wide-spread flag, USDC/FDUSD rate deviations, age and flow): dropping them did not hurt LightGBM. 83 → 76.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Models</div>
+  <h2>Six different models on the same features</h2>
+  <table>
+    <tr><th>model</th><th>design</th><th class="n">validation</th></tr>
+    <tr><td>LightGBM</td><td>per instrument × horizon; Huber loss; hyperparameters tuned with Optuna on the ensemble score</td><td class="n">0.2308</td></tr>
+    <tr><td>pooled LightGBM</td><td>one model for all 4 instruments, instrument id as a categorical feature</td><td class="n">0.2304</td></tr>
+    <tr><td>CatBoost</td><td>per instrument × horizon; Huber loss</td><td class="n">0.2285</td></tr>
+    <tr><td>GRU</td><td>recurrent network over the feature sequence, 2.5 s step, state from the start of the day</td><td class="n">0.2253</td></tr>
+    <tr><td>MLP</td><td>256-128-64, SiLU, Huber loss, one network for all instruments and horizons</td><td class="n">0.2245</td></tr>
+    <tr><td>Ridge</td><td>linear regression</td><td class="n">0.2130</td></tr>
+  </table>
+  <p class="muted small" style="margin-top:14px">Common: early stopping on the last 10% of training days. Both neural networks run in numpy at prediction time — no torch or GPU is needed for the submission.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Models</div>
+  <h2>Model details</h2>
+  <table>
+    <tr><th>model</th><th>structure</th><th>training</th></tr>
+    <tr><td>LightGBM</td><td>12 models (instrument × horizon); up to 3000 trees, 187 leaves, ≥ 14,200 rows per leaf</td><td>lr 0.037, feature fraction 0.88, bagging 0.76, L2 5.1, Huber δ 2.5; tuned with Optuna</td></tr>
+    <tr><td>pooled LightGBM</td><td>3 models (one per horizon) for all 4 instruments; instrument id as a categorical feature; up to 600 trees, 31 leaves, ≥ 2,000 rows per leaf</td><td>lr 0.05, feature fraction 0.8, bagging 0.8, L2 10, Huber δ 1</td></tr>
+    <tr><td>CatBoost</td><td>12 models; symmetric trees of depth 6, up to 1000 trees</td><td>lr 0.1, L2 10, Huber δ 1</td></tr>
+    <tr><td>Ridge</td><td>12 linear models on 76 features</td><td>L2 penalty 0.01</td></tr>
+    <tr><td>MLP</td><td>76 features + instrument one-hot → 256 → 128 → 64 → 3 horizons, SiLU; ≈ 62k parameters</td><td>Adam, lr 0.001, batch 4096, up to 15 epochs, Huber δ 1, weight decay 1e-5</td></tr>
+    <tr><td>GRU</td><td>76 features + instrument one-hot → GRU (64 units) → 3 horizons; ≈ 28k parameters; 2.5 s step, 64 warm-up + 64 trained steps</td><td>Adam, lr 0.002, batch 256 sequences, up to 20 epochs, Huber δ 1</td></tr>
+  </table>
+  <p class="muted small" style="margin-top:14px">All models: early stopping on the last 10% of training days (patience 3 epochs for the networks). Parameter counts are computed from the layer sizes.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Ensemble</div>
+  <h2>The blend beats every single model</h2>
+  <div class="grid2">
+    <div class="steps">
+      <div class="st"><div class="num">1</div><p>Models trained on 09-15 – 04-30 predict the held-out part of the training period, 05-01 – 07-14.</p></div>
+      <div class="st"><div class="num">2</div><p>Choose the weighting scheme honestly: fit on even days, check on odd days, and vice versa. Global / per horizon / per pair → <b>per pair</b> wins.</p></div>
+      <div class="st"><div class="num">3</div><p>Fit the weights on all days 05-01 – 07-14: each prediction divided by its std, weights ≥ 0 summing to 1, grid step 0.05, exact metric.</p></div>
+      <div class="st"><div class="num">4</div><p>Validation 07-15 – 09-14: the weights are applied as they are, nothing is fitted.</p></div>
+    </div>
+    <div>
+      <p class="small muted" style="margin-bottom:8px">Validation</p>
+      <div class="bars">
+        <div class="brow"><span>best single (LightGBM)</span><div class="btrack"><div class="bfill soft" style="width:calc((0.2308 - 0.18)/0.06*100%)"></div></div><span class="bval">0.2308</span></div>
+        <div class="brow"><span>same 5 models, no GRU</span><div class="btrack"><div class="bfill soft" style="width:calc((0.2333 - 0.18)/0.06*100%)"></div></div><span class="bval">0.2333</span></div>
+        <div class="brow"><span><b>ensemble of 6 (+GRU)</b></span><div class="btrack"><div class="bfill" style="width:calc((0.2346 - 0.18)/0.06*100%)"></div></div><span class="bval">0.2346</span></div>
+      </div>
+      <p class="small muted" style="margin-top:10px">Scale starts at 0.18. GRU alone is weaker than the trees, but its errors differ — it adds +0.0013 to the ensemble.</p>
+    </div>
+  </div>
+  <p class="small muted" style="margin:10px 0 4px">Weights by instrument × horizon (fitted on 05-01 – 07-14; empty = 0)</p>
+  <table class="wt"><colgroup><col style="width:150px"><col><col><col><col><col><col><col><col><col><col><col><col><col style="width:60px"></colgroup><tr><th></th><th colspan="3" class="wi">BTC</th><th colspan="3" class="wi">ETH</th><th colspan="3" class="wi">SOL</th><th colspan="3" class="wi">PEPE</th><th class="wm">mean</th></tr><tr><th></th><th class="wh wi">0.5 s</th><th class="wh">2 s</th><th class="wh">8 s</th><th class="wh wi">0.5 s</th><th class="wh">2 s</th><th class="wh">8 s</th><th class="wh wi">0.5 s</th><th class="wh">2 s</th><th class="wh">8 s</th><th class="wh wi">0.5 s</th><th class="wh">2 s</th><th class="wh">8 s</th><th></th></tr>
+<tr><td class="wl">LightGBM</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 66%, transparent);color:#fff">.35</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 66%, transparent);color:#fff">.35</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 66%, transparent);color:#fff">.35</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 57%, transparent);color:#fff">.30</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 76%, transparent);color:#fff">.40</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 85%, transparent);color:#fff">.45</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 66%, transparent);color:#fff">.35</td><td class="wm"><b>0.30</b></td></tr>
+<tr><td class="wl">GRU</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 85%, transparent);color:#fff">.45</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 76%, transparent);color:#fff">.40</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 66%, transparent);color:#fff">.35</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 66%, transparent);color:#fff">.35</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wm"><b>0.29</b></td></tr>
+<tr><td class="wl">Ridge</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 19%, transparent);color:var(--ink)">.10</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 76%, transparent);color:#fff">.40</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 19%, transparent);color:var(--ink)">.10</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 19%, transparent);color:var(--ink)">.10</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 19%, transparent);color:var(--ink)">.10</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 57%, transparent);color:#fff">.30</td><td class="wm"><b>0.15</b></td></tr>
+<tr><td class="wl">pooled LightGBM</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 47%, transparent);color:var(--ink)">.25</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wm"><b>0.12</b></td></tr>
+<tr><td class="wl">MLP</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 19%, transparent);color:var(--ink)">.10</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 38%, transparent);color:var(--ink)">.20</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 19%, transparent);color:var(--ink)">.10</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wm"><b>0.07</b></td></tr>
+<tr><td class="wl">CatBoost</td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc" style="background:color-mix(in srgb, var(--accent) 19%, transparent);color:var(--ink)">.10</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 0%, transparent);color:var(--ink)"></td><td class="wc wi" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 28%, transparent);color:var(--ink)">.15</td><td class="wc" style="background:color-mix(in srgb, var(--accent) 9%, transparent);color:var(--ink)">.05</td><td class="wm"><b>0.06</b></td></tr>
+  </table>
+</section>
+
+<section class="slide">
+  <div class="kicker">Validation scheme</div>
+  <h2>The validation score stayed honest</h2>
+  <div class="gantt">
+      <div class="grow"><span><b>periods</b></span><div class="gtrack"><div class="seg per" style="left:0.00%;width:71.13%">train 09-15 – 07-14</div><div class="seg per" style="left:71.13%;width:14.55%">validation</div><div class="seg test" style="left:85.68%;width:14.32%">test</div></div></div>
+      <div class="grow"><span>1. selection models</span><div class="gtrack"><div class="seg tr" style="left:0.00%;width:53.52%">trained</div><div class="seg sc" style="left:53.52%;width:17.61%">select</div></div></div>
+      <div class="grow"><span>2. evaluation models</span><div class="gtrack"><div class="seg tr" style="left:0.00%;width:71.13%">trained</div><div class="seg sc" style="left:71.13%;width:14.55%">0.2346</div></div></div>
+      <div class="grow"><span>3. final model</span><div class="gtrack"><div class="seg tr" style="left:0.00%;width:85.68%">trained on train + validation</div><div class="seg sc" style="left:85.68%;width:14.32%">test</div></div></div>
+      <div class="grow"><span></span><div class="ticks"><span style="left:0.00%">2025-09-15</span><span style="left:53.52%">05-01</span><span style="left:71.13%">07-15</span><span style="left:85.68%">09-15</span></div></div>
+  </div>
+  <p class="small muted" style="margin-top:6px">Filled: the period a model is trained on. Outlined: where it is scored. Features, models, hyperparameters and ensemble weights were chosen on 05-01 – 07-14 (row 1); validation was used only to score the recipe (row 2). The final model (row 3) is the same recipe retrained, as the rules allow.</p>
+  <div class="grid2" style="margin-top:16px">
+    <div class="card"><h3>Causality check</h3>
+      <p>The organizers' procedure, made stricter: "dangerous" T values exactly at a quote change in any market and 1 ms before it. Final ensemble: 2 real days, 44 probes — all matched.</p></div>
+    <div class="card"><h3>Submission check</h3>
+      <p>Clean environment from uv.lock, a data folder with only the requested and previous day, predict.py with no model argument: 4 × 172,800 rows, identical to the working prediction bit-for-bit.</p></div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Results</div>
+  <h2>Train and validation</h2>
+  <div class="grid2">
+    <table>
+      <tr><th>model</th><th class="n">train</th><th class="n">validation</th></tr>
+      <tr><td>baseline (OLS on imbalance)</td><td class="n">0.1991</td><td class="n">0.1838</td></tr>
+      <tr><td>Ridge, 76 features</td><td class="n">0.2248</td><td class="n">0.2130</td></tr>
+      <tr><td>MLP</td><td class="n">0.2398</td><td class="n">0.2245</td></tr>
+      <tr><td>GRU</td><td class="n">0.2398</td><td class="n">0.2253</td></tr>
+      <tr><td>CatBoost</td><td class="n">0.2442</td><td class="n">0.2285</td></tr>
+      <tr><td>pooled LightGBM</td><td class="n">0.2436</td><td class="n">0.2304</td></tr>
+      <tr><td>LightGBM</td><td class="n">0.2475</td><td class="n">0.2308</td></tr>
+      <tr class="hl"><td>ensemble (6 models)</td><td class="n">0.2488</td><td class="n">0.2346</td></tr>
+    </table>
+    <div>
+      <div class="card"><h3>No overfitting</h3>
+        <p>Train − validation gap: ensemble 0.014, linear baseline 0.015, Ridge 0.012. Complex models do not drop more than simple ones — the validation period is simply harder.</p></div>
+      <p class="muted small" style="margin-top:12px">Train: the same days the models were trained on (every 3rd day, every 5th grid point). Validation: all points, competition metric.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">How we got here</div>
+  <h2>From baseline to the final ensemble</h2>
+  <div class="grid2">
+    <div>
+      <div class="bars">
+    <div class="brow"><span>baseline (1 feature, OLS)</span><div class="btrack"><div class="bfill base" style="width:calc((0.1838 - 0.17)/0.07*100%)"></div></div><span class="bval">0.1838</span></div>
+    <div class="brow"><span>Ridge, 76 features</span><div class="btrack"><div class="bfill soft" style="width:calc((0.2130 - 0.17)/0.07*100%)"></div></div><span class="bval">0.2130</span></div>
+    <div class="brow"><span>LightGBM, 76 features</span><div class="btrack"><div class="bfill soft" style="width:calc((0.2307 - 0.17)/0.07*100%)"></div></div><span class="bval">0.2307</span></div>
+    <div class="brow"><span>ensemble of 5 models</span><div class="btrack"><div class="bfill soft" style="width:calc((0.2327 - 0.17)/0.07*100%)"></div></div><span class="bval">0.2327</span></div>
+    <div class="brow"><span>same 5, improved LightGBM</span><div class="btrack"><div class="bfill soft" style="width:calc((0.2333 - 0.17)/0.07*100%)"></div></div><span class="bval">0.2333</span></div>
+    <div class="brow"><span><b>+ GRU = ensemble of 6</b></span><div class="btrack"><div class="bfill " style="width:calc((0.2346 - 0.17)/0.07*100%)"></div></div><span class="bval">0.2346</span></div>
+      </div>
+      <p class="muted small" style="margin-top:14px">Ensemble of 5: LightGBM, pooled LightGBM, CatBoost, Ridge, MLP. Improved LightGBM: up to 3000 trees, Optuna parameters. Scale starts at 0.17.</p>
+      <p class="small" style="margin-top:10px"><b>Most of the gain came from features and trees:</b> +0.047 from the baseline to LightGBM. The ensemble added another +0.004.</p>
+    </div>
+    <div>
+      <p class="small muted" style="margin:0 0 6px">What each model adds: the ensemble without it, weights refitted</p>
+      <table>
+        <tr><th>model</th><th class="n">alone</th><th class="n">ensemble without it</th><th class="n">contribution</th></tr>
+        <tr><td>GRU</td><td class="n">0.2253</td><td class="n">0.2333</td><td class="n">+0.0013</td></tr>
+        <tr><td>LightGBM</td><td class="n">0.2308</td><td class="n">0.2337</td><td class="n">+0.0009</td></tr>
+        <tr><td>pooled LightGBM</td><td class="n">0.2304</td><td class="n">0.2342</td><td class="n">+0.0004</td></tr>
+        <tr><td>MLP</td><td class="n">0.2245</td><td class="n">0.2344</td><td class="n">+0.0002</td></tr>
+        <tr><td>Ridge</td><td class="n">0.2130</td><td class="n">0.2345</td><td class="n">+0.0000</td></tr>
+        <tr><td>CatBoost</td><td class="n">0.2285</td><td class="n">0.2346</td><td class="n">+0.0000</td></tr>
+      </table>
+      <p class="muted small" style="margin-top:10px">The weakest single models (GRU, MLP) add more than the strong CatBoost: their errors differ from the trees'.</p>
+    </div>
+  </div>
+  <p class="muted small" style="margin-top:14px">Each model is trained separately on the same 76 features; the ensemble only blends their predictions. All numbers are validation scores.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Analysis</div>
+  <h2>Where the model is strong and where it is weak</h2>
+  <div class="grid2">
+    <div>
+      <p class="small muted" style="margin-bottom:8px">Validation, ensemble</p>
+      <table class="heat">
+        <tr><th></th><th class="n">500 ms</th><th class="n">2 s</th><th class="n">8 s</th></tr>
+        <tr><td>BTC</td><td class="n">0.305</td><td class="n">0.273</td><td class="n">0.220</td></tr>
+        <tr><td>ETH</td><td class="n">0.287</td><td class="n">0.244</td><td class="n">0.179</td></tr>
+        <tr><td>SOL</td><td class="n">0.273</td><td class="n">0.260</td><td class="n">0.209</td></tr>
+        <tr><td>PEPE</td><td class="n">0.220</td><td class="n">0.202</td><td class="n">0.145</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:10px">The more liquid the market and the shorter the horizon, the better the forecast.</p>
+    </div>
+    <div>
+      <div class="card"><h3>Week of Aug 19–25</h3>
+        <p>Longer horizons dropped for all instruments at once: at 8 s, BTC/ETH/SOL 0.135 vs 0.211 on other days, PEPE 0.083 vs 0.152. 4 of the 5 worst validation days are in this week. It costs 0.0055 of the ensemble's SCORE (0.2401 without it) — a market regime shift, not a model error.</p></div>
+      <div class="card" style="margin-top:14px"><h3>PEPE drift</h3>
+        <p>The 500 ms correlation declines from May: 0.278 → 0.261 → 0.231 (May–July); on validation 0.223 / 0.211 / 0.236 (Jul / Aug / Sep). That is why the final model also learns from July–September.</p></div>
+      <div class="card" style="margin-top:14px"><h3>Weekends</h3>
+        <p>Weekdays vs weekends: 500 ms 0.286 vs 0.234, 2 s 0.253 vs 0.223, but 8 s 0.184 vs 0.197.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide">
+  <div class="kicker">Experiments</div>
+  <h2>What worked and what did not</h2>
+  <table>
+    <tr><th>what we tried</th><th>result</th><th></th></tr>
+    <tr><td>GRU as the sixth ensemble member</td><td>+0.0013 to the ensemble on validation</td><td><span class="pill good">kept</span></td></tr>
+    <tr><td>Optuna for LightGBM, 10 trials</td><td>all settings within ±0.0002 — the model is limited by the features</td><td><span class="pill neu">small</span></td></tr>
+    <tr><td>LightGBM: up to 3000 trees instead of 600 + Optuna parameters</td><td>alone: +0.0006 on the held-out training part, +0.0001 on validation; in the ensemble: +0.0006 on validation (0.2327 → 0.2333)</td><td><span class="pill neu">small</span></td></tr>
+    <tr><td>pooled LightGBM (one model for all 4 instruments) as an ensemble member</td><td>+0.0004 to the ensemble on validation</td><td><span class="pill good">kept</span></td></tr>
+    <tr><td>removing 7 features: spread in ticks, wide-spread flag, USDC/FDUSD rate deviations, age and flow</td><td>+0.0003 (LightGBM, held-out training part)</td><td><span class="pill good">kept</span></td></tr>
+    <tr><td>recency weights for training days (90-day half-life)</td><td>−0.0001</td><td><span class="pill bad">dropped</span></td></tr>
+  </table>
+  <p class="muted small" style="margin-top:14px">Takeaway: with these features, the gain comes from model diversity, not from fine-tuning each model.</p>
+</section>
+
+<section class="slide">
+  <div class="kicker">Summary</div>
+  <h2>What was submitted and what comes next</h2>
+  <div class="grid2">
+    <div class="card"><h3>Submitted</h3>
+      <ul><li>ensemble of 6 models, validation <b>0.2346</b> (+28% over baseline)</li>
+      <li>final model trained on training + validation data</li>
+      <li>causality verified bit-for-bit, no leaks</li>
+      <li>repository: predict.py, weights, uv.lock, README</li></ul></div>
+    <div class="card"><h3>Next steps</h3>
+      <ol>
+      <li>ensemble weights by market regime (quick check on saved predictions)</li>
+      <li>time of day and weekends as features (on weekends 500 ms is worse, 8 s is better)</li>
+      <li>features from 100 ms snapshots within each 500 ms step</li>
+      <li>per-instrument feature sets (PEPE first)</li>
+      <li>hyperparameter search for the neural networks (Optuna)</li>
+      <li>more models in the ensemble (seeds, window variants)</li>
+      <li>a neural network on the raw order book (DeepLOB-style: 10 levels × 64 snapshots)</li>
+      <li>evaluation on many independent periods with confidence intervals</li></ol></div>
+  </div>
+  <div class="foot">github.com/NikolayMeshcheryakov/cmf-hft-short-horizon</div>
+</section>
+
+</div>
+<div class="nav">
+  <button id="prev" aria-label="Back">←</button>
+  <span id="cnt"></span>
+  <button id="next" aria-label="Next">→</button>
+  <button id="theme" aria-label="Theme">theme</button>
+</div>
+<script>
+(function(){
+  var s=[].slice.call(document.querySelectorAll('.slide')), i=0;
+  try{ var h=parseInt(location.hash.slice(1),10); if(h>=1&&h<=s.length) i=h-1; }catch(e){}
+  function show(k){ i=Math.max(0,Math.min(s.length-1,k));
+    s.forEach(function(x,j){x.classList.toggle('on',j===i)});
+    document.getElementById('cnt').textContent=(i+1)+' / '+s.length;
+    document.getElementById('prog').style.width=((i+1)/s.length*100)+'%';
+    try{ history.replaceState(null,'','#'+(i+1)); }catch(e){} }
+  document.getElementById('prev').onclick=function(){show(i-1)};
+  document.getElementById('next').onclick=function(){show(i+1)};
+  document.getElementById('theme').onclick=function(){
+    var r=document.documentElement, dark=r.getAttribute('data-theme')==='dark' ||
+      (!r.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+    r.setAttribute('data-theme', dark?'light':'dark'); };
+  document.addEventListener('keydown',function(e){
+    if(['ArrowRight','PageDown',' '].indexOf(e.key)>=0){e.preventDefault();show(i+1)}
+    if(['ArrowLeft','PageUp'].indexOf(e.key)>=0){e.preventDefault();show(i-1)}
+    if(e.key==='Home')show(0); if(e.key==='End')show(s.length-1); });
+  var x0=null; document.addEventListener('touchstart',function(e){x0=e.touches[0].clientX},{passive:true});
+  document.addEventListener('touchend',function(e){ if(x0===null)return; var d=e.changedTouches[0].clientX-x0;
+    if(Math.abs(d)>50) show(i+(d<0?1:-1)); x0=null; });
+  show(i);
+})();
+</script>
+</body>
+</html>
