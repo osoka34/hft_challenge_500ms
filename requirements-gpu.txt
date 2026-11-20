@@ -1,0 +1,15 @@
+# GTX 1080 Ti (sm_61 / Pascal): use Python 3.12 venv (.venv-gpu) and torch≤2.7 cu118.
+# Create:
+#   uv venv .venv-gpu --python 3.12
+#   source .venv-gpu/bin/activate
+#   uv pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu118
+#   uv pip install --no-upgrade -r requirements-gpu.txt
+#
+# Do NOT let newer neuralforecast deps upgrade torch to 2.8+/cu12x — those drop sm_61.
+
+torch==2.7.1
+pyarrow>=14
+pandas>=2.1
+numpy>=1.26
+scipy>=1.11
+neuralforecast>=3.0

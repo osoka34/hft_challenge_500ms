@@ -157,3 +157,145 @@ Clip `y` по train 0.1%/99.9%; OLS `ŷ = a + b·imb` per horizon на train; da
 ### Что нам дало
 
 Working SCORE harness на одном инструменте.
+
+## V07 — Inventory / missing / depeg
+
+### Зачем
+
+Нужно отделить «файла нет, потому что рынок ещё не листился» от реальных дыр в данных.
+
+### Как считается
+
+Сверяем календарь дат с `meta/instruments.parquet` (`first_date`/`last_date`) и наличием parquet в `data/{book,bbo,trades,targets,stable}`. Depeg intervals — из `meta/depeg_intervals.parquet`.
+
+### Что показывает
+
+Почти все «пропажи» — USD1 до листинга. Stable depeg минуты малы относительно года.
+
+### Как пользоваться
+
+Availability flags для USD1/alt quotes; не импутить pre-listing дни.
+
+### Что нам дало
+
+Согласование с peer: 167 missing = pre-listing, не corruption.
+
+---
+
+## V08 — Book DQ (all instruments)
+
+### Зачем
+
+Outage и late-start ломают IC/SCORE и маскируются под «рынок замер».
+
+### Как считается
+
+По каждому book-дню: `n` vs 172800, first lag от 00:00 UTC, max gap, locked/crossed фракции. Смотрим peer-даты outage отдельно.
+
+### Что показывает
+
+Locked/crossed ≈ 0; редкие многоминутные gaps на известных outage днях.
+
+### Как пользоваться
+
+Маска `max_gap` / missing rows; не учить flow-фичи без stale-флага.
+
+### Что нам дало
+
+Hygiene gate на полном году, не только PEPE sample.
+
+---
+
+## V09 — Targets zeros / daily vol
+
+### Зачем
+
+Доля нулей задаёт потолок корреляции; дневная вола — режимы, где lead–lag сильнее.
+
+### Как считается
+
+Exact-zero fraction по горизонтам; daily std `y_2s` в bp; train vs val; spike-день 2025-10-10; weekend vs weekday.
+
+### Что показывает
+
+500ms почти всегда «тихий»; val тише train; 10-10 — экстремум.
+
+### Как пользоваться
+
+Не оптимизировать только 500ms; учитывать vol regimes.
+
+### Что нам дало
+
+Полная калибровка 4 perps против peer цифр.
+
+---
+
+## V10 — Own imbalance IC + OLS SCORE
+
+### Зачем
+
+Это официальный baseline и якорь прогресса (0.1838).
+
+### Как считается
+
+`imb=(bid_qty−ask_qty)/(bid_qty+ask_qty)` через causal `merge_asof` book→targets. Clip из `meta/target_clip.parquet`. OLS на train; daily Pearson; среднее 12 клеток. Дополнительно Spearman IC, |imb|>0.9, 1-tick share, sample trade-flow IC.
+
+### Что показывает
+
+Imb доминирует; SCORE близок к organizers; flow слабее на коротком горизонте.
+
+### Как пользоваться
+
+M0 = OLS imb; всё остальное меряем как lift над ним.
+
+### Что нам дало
+
+Полный 12-cell SCORE на локальных данных.
+
+---
+
+## V11 — Lead–lag cross-correlation
+
+### Зачем
+
+Кто на сколько миллисекунд опережает целевой perp / spot — главный cross-market угол peers.
+
+### Как считается
+
+BBO mid → causal reindex на 100/500 ms сетку → log-return → `corr(r_leader(t−k), r_follower(t))` и reverse. Медиана по sample-дням; peak только для k>0.
+
+### Что показывает
+
+Высокий corr@0 (синхронность); perp→spot сильнее spot→perp; короткие лаги 100–300 ms; USD1/USDC leaders осмысленны, но тонкие рынки чувствительны к receive-time.
+
+### Как пользоваться
+
+Лагированные mid-returns лидеров ≤300–500 ms как фичи; не minute-scale lead–lag.
+
+### Что нам дало
+
+Проверка peer claims на официальной раскладке данных (sample, не 365d Granger).
+
+---
+
+## V12 — Light Granger ΔR²
+
+### Зачем
+
+Cross-corr не отделяет «общий шок» от дополнительной предсказательной силы.
+
+### Как считается
+
+На sample днях: ΔR² = R²(y ~ own lags + leader lags) − R²(y ~ own lags), лаги на окне ~2 s.
+
+### Что показывает
+
+Порядок величины: perp→spot крупнее, same-coin alt→perp меньше — как у peers.
+
+### Как пользоваться
+
+Приоритизация лидеров для фич, не замена полному Granger.
+
+### Что нам дало
+
+Дешёвая проверка направления без Go-пайплайна peers.
