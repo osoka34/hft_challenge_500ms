@@ -24,9 +24,27 @@ from full_eda_io import load_target_clip, pearson, spearman  # noqa: E402
 from nf_features import load_day_panel  # noqa: E402
 from run_paper_seq import (  # noqa: E402
     add_albers_sweep_proxy,
+    add_boltzmann_gap,
+    add_cross_btc_leader,
+    add_lucchese_vol_side,
+    add_lucchese_vol_side_far,
     add_cont_ofi_depth,
     add_stoikov_micro,
+    add_imb_x_lead,
+    add_phi_cnt,
+    add_q_depl,
+    add_liq_side,
+    add_rel_liq,
+    add_sweep_px,
+    add_sign_age,
+    add_size_gap,
+    add_usdc_prem,
+    add_sq_micro,
+    add_vb_tfi,
+    add_vpin,
+    add_vwap_mid,
     apply_gould_fold,
+    apply_micro_adj_fold,
     apply_stoikov_g1_fold,
 )
 
@@ -71,6 +89,7 @@ CORE_CANDS = [
 
 PAPER_CANDS = [
     "stoikov_g1",
+    "micro_adj",
     "gould_ey",
     "ofi_raw",
     "ofi_depth",
@@ -82,6 +101,26 @@ PAPER_CANDS = [
     "sweep_imb",
     "sweep_imba",
     "sweep_imbb",
+    "vol_side_imb",
+    "vol_side_imb_far",
+    "boltz_gap",
+    "vpin",
+    "vb_tfi",
+    "btc_ret_1_bp",
+    "btc_imb",
+    "btc_tfi_s100",
+    "btc_kf_innov",
+    "vwap_mid_bp",
+    "phi_cnt",
+    "sq_micro_bp",
+    "q_depl",
+    "rel_liq",
+    "liq_side",
+    "sweep_px",
+    "sign_age",
+    "size_gap",
+    "usdc_prem_bp",
+    "imb_x_lead",
 ]
 
 
@@ -108,8 +147,9 @@ def _resolve_cands(panels: dict[str, pd.DataFrame], days: list[str], feats: list
         return list(dict.fromkeys(feats))
     cands = []
     sample = panels[days[min(5, len(days) - 1)]]
+    fold_cands = ("stoikov_g1", "micro_adj", "gould_ey")
     for c in CORE_CANDS + PAPER_CANDS:
-        if c in ("stoikov_g1", "gould_ey"):
+        if c in fold_cands:
             cands.append(c)
         elif c in sample.columns:
             cands.append(c)
@@ -118,17 +158,74 @@ def _resolve_cands(panels: dict[str, pd.DataFrame], days: list[str], feats: list
 
 def _ensure_paper_feats(panels: dict[str, pd.DataFrame], inst: str, days: list[str], cands: list[str]) -> None:
     """Load only the paper builders required by the candidate list."""
-    need_stoikov = any(c == "stoikov_g1" or c.startswith("stoikov") for c in cands)
+    need_stoikov = any(
+        c in ("stoikov_g1", "micro_adj") or c.startswith("stoikov") for c in cands
+    )
     need_ofi = any(
         c.startswith(("ofi_", "bid_of", "ask_of")) or c in ("ofi_raw", "ofi_depth") for c in cands
     )
-    need_sweep = any("sweep" in c for c in cands)
+    need_sweep = any("sweep" in c and not c.startswith("sweep_px") for c in cands)
+    need_vol = any(c == "vol_side_imb" for c in cands)
+    need_vol_far = any(c == "vol_side_imb_far" or c.endswith("_far") and "vol_side" in c for c in cands)
+    need_boltz = any(c == "boltz_gap" or c.startswith("boltz") for c in cands)
+    need_vpin = any(c == "vpin" or c.startswith("vpin") for c in cands)
+    need_vb_tfi = any(c == "vb_tfi" or c.startswith("vb_tfi") for c in cands)
+    need_vwap = any(c == "vwap_mid_bp" or c.startswith("vwap_mid") for c in cands)
+    need_phi = any(c == "phi_cnt" or c.startswith("phi_cnt") for c in cands)
+    need_sq = any(c == "sq_micro_bp" or c.startswith("sq_micro") for c in cands)
+    need_qdepl = any(c == "q_depl" or c.startswith("q_depl") for c in cands)
+    need_rel = any(c == "rel_liq" or c.startswith("rel_liq") for c in cands)
+    need_liq_side = any(c == "liq_side" or c.startswith("liq_side") for c in cands)
+    need_sweep_px = any(c == "sweep_px" or c.startswith("sweep_px") for c in cands)
+    need_sign_age = any(c == "sign_age" or c.startswith("sign_age") for c in cands)
+    need_size_gap = any(c == "size_gap" or c.startswith("size_gap") for c in cands)
+    need_usdc = any(c == "usdc_prem_bp" or c.startswith("usdc_prem") for c in cands)
+    need_imb_x_lead = any(c == "imb_x_lead" for c in cands)
+    need_btc_x = any(c.startswith("btc_") for c in cands)
     if need_stoikov:
         add_stoikov_micro(panels, days)
     if need_ofi:
         add_cont_ofi_depth(panels, inst)
     if need_sweep:
         add_albers_sweep_proxy(panels, inst)
+    if need_vol:
+        add_lucchese_vol_side(panels, inst)
+    if need_vol_far:
+        add_lucchese_vol_side_far(panels, inst)
+    if need_boltz:
+        add_boltzmann_gap(panels, inst)
+    if need_vpin:
+        add_vpin(panels, inst)
+    if need_vb_tfi:
+        add_vb_tfi(panels, inst)
+    if need_vwap:
+        add_vwap_mid(panels, inst)
+    if need_phi:
+        add_phi_cnt(panels, inst)
+    if need_sq:
+        add_sq_micro(panels, inst)
+    if need_qdepl:
+        add_q_depl(panels, inst)
+    if need_rel:
+        add_rel_liq(panels, inst)
+    if need_liq_side:
+        add_liq_side(panels, inst)
+    if need_sweep_px:
+        add_sweep_px(panels, inst)
+    if need_sign_age:
+        add_sign_age(panels, inst)
+    if need_size_gap:
+        add_size_gap(panels, inst)
+    if need_usdc:
+        add_usdc_prem(panels, inst)
+    if need_imb_x_lead:
+        add_imb_x_lead(panels)
+    if need_btc_x:
+        if inst == "BTCUSDT_PERP":
+            raise ValueError("btc_* cross features require a non-BTC instrument")
+        print(f"cross BTC leader → {inst}…", flush=True)
+        btc = {d: load_day_panel("BTCUSDT_PERP", d, horizon="y_500ms") for d in days}
+        add_cross_btc_leader(panels, btc)
 
 
 def screen(
@@ -157,7 +254,8 @@ def screen(
         _ensure_paper_feats(panels, inst, days, cands)
 
     sample = panels[days[min(5, len(days) - 1)]]
-    missing = [c for c in cands if c not in ("stoikov_g1", "gould_ey") and c not in sample.columns]
+    fold_cands = ("stoikov_g1", "micro_adj", "gould_ey")
+    missing = [c for c in cands if c not in fold_cands and c not in sample.columns]
     if missing:
         raise KeyError(f"columns not on panel after builders: {missing}")
 
@@ -175,6 +273,10 @@ def screen(
             if feat == "stoikov_g1":
                 x_tr = apply_stoikov_g1_fold(tr, tr)
                 x_te = apply_stoikov_g1_fold(tr, te)
+                y_tr = tr["y"].to_numpy(float)
+            elif feat == "micro_adj":
+                x_tr = apply_micro_adj_fold(tr, tr)
+                x_te = apply_micro_adj_fold(tr, te)
                 y_tr = tr["y"].to_numpy(float)
             elif feat == "gould_ey":
                 x_tr = apply_gould_fold(tr, tr)
@@ -223,13 +325,45 @@ def screen(
                 "significant": sig,
                 "family": (
                     "stoikov"
-                    if "stoikov" in feat
+                    if "stoikov" in feat or feat == "micro_adj"
                     else "gould"
                     if "gould" in feat
                     else "cont_ofi"
                     if feat.startswith(("ofi_", "bid_of", "ask_of"))
                     else "albers_sweep"
                     if "sweep" in feat
+                    else "lucchese_vol"
+                    if "vol_side" in feat
+                    else "boltzmann"
+                    if "boltz" in feat
+                    else "vpin"
+                    if feat == "vpin"
+                    else "vb_tfi"
+                    if "vb_tfi" in feat
+                    else "vwap_mid"
+                    if "vwap_mid" in feat
+                    else "phi_cnt"
+                    if "phi_cnt" in feat
+                    else "sq_micro"
+                    if "sq_micro" in feat
+                    else "q_depl"
+                    if feat == "q_depl" or feat.startswith("q_depl")
+                    else "rel_liq"
+                    if feat == "rel_liq" or feat.startswith("rel_liq")
+                    else "liq_side"
+                    if feat == "liq_side" or feat.startswith("liq_side")
+                    else "sweep_px"
+                    if feat == "sweep_px" or feat.startswith("sweep_px")
+                    else "sign_age"
+                    if feat == "sign_age" or feat.startswith("sign_age")
+                    else "size_gap"
+                    if feat == "size_gap" or feat.startswith("size_gap")
+                    else "usdc_prem"
+                    if feat == "usdc_prem_bp" or feat.startswith("usdc_prem")
+                    else "leader"
+                    if feat == "imb_x_lead"
+                    else "cross_btc"
+                    if feat.startswith("btc_")
                     else "tfi"
                     if "tfi" in feat
                     else "leader"

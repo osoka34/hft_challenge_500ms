@@ -36,12 +36,18 @@ Ledger format: `reports/HFT_LEDGER_ROW.md`. Status words: `todo` → `blocked` /
    On fail: ledger `NOT OK`, go to step 7.
    On pass: ledger status stays heading to pack-add (`partial` until step 5 finishes).
 
-5. **Pack-add.** Open and follow `.cursor/skills/hft-group-admit/SKILL.md`.
+5. **Pack-add.** Open and follow `.cursor/skills/hft-group-admit/SKILL.md` for this one column.
+   If several `partial` / OK candidates already sit in the ledger and the user asked to rebuild the pack, open `.cursor/skills/hft-group-select/SKILL.md` instead (or after).
    Done when Δ vs `hl_resid` is OK / WEAK / NOT OK and the ledger status is `done` / `partial` / `NOT OK`.
 
-6. **Admit summary.** Quote uni metrics, causality, and pack-add Δ. This hunt does not claim 12-cell `SCORE`.
+6. **Close the books.** Before the final answer:
+   - Summary row in `reports/HFT_PAPER_EXPERIMENTS.md` matches the ledger block.
+   - Paper section in `reports/HFT_PAPERS.md`: final status only (no «hunt in progress»); authors match the abstract.
+   - Drop the idea from any «Next in queue» list once screened (including `blocked` / `NOT OK` / `partial` / `done`).
+   Done when those three files agree and nothing still says the hunt is running.
+   Quote uni metrics, causality, and pack-add Δ. This hunt does not claim 12-cell `SCORE`.
 
-7. **Next or stop.** If iterations left and the user allowed another pick, return to step 1 with a query that excludes logged `NOT OK` / `done` / `blocked` nearest columns. Else stop.
+7. **Next or stop.** If iterations left and the user allowed another pick, return to step 1 with a query that excludes logged `NOT OK` / `done` / `blocked` / `partial` nearest columns. Else stop.
 
 ## When to pull the others
 

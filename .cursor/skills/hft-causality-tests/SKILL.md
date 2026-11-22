@@ -15,7 +15,8 @@ The organizer re-runs a day cut off at `T`. Rows with grid time `t ≤ T` must m
 ## Steps
 
 1. Name the builder and which rule below it has to satisfy.
-   Done when the test file will assert one of: truncation, as-of, trade hole, fold-fit, train clip.
+   A pure row-local map (same inputs → same output per row, no history) is **not** locked by truncating its numpy helper alone — that always passes. For those builders pick **as-of** (or trade hole) on the join onto the grid.
+   Done when the test file will assert one of: truncation, as-of, trade hole, fold-fit, train clip — and the chosen rule can actually fail if the builder peeks.
 
 2. Add the smallest pytest under `tests/` that fails when the rule breaks. Prefer extending `tests/test_feature_truncation.py` (truncation / as-of templates already there) over a new file. Build the frame in the test. Open a parquet day only when the builder cannot run on a synthetic frame.
    Done when the test edits or deletes events with `ts > T` and compares rows with `t ≤ T`.

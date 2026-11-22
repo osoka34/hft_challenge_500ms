@@ -21,7 +21,8 @@ What is already logged lives in `reports/HFT_PAPERS.md` (status) and the verdict
 2. If the user named a paper, open its abstract (any source below). If they did not, search in this order until one hit defines a **feature**, not a network architecture.
    Put the missing input in the query (depth buckets, trade flow, a leader, spread state, queue imbalance, OFI).
    Prefer a hit whose nearest logged column is absent or `todo`, not `done` / `NOT OK`.
-   Done when you have a title, a stable id (arXiv / SSRN / DOI), and the sentence that defines the feature.
+   Take **title and authors from the live abstract** (Atom / API), not from a nickname in `HFT_PAPERS.md`. If the log's author line disagrees, correct the log when you write the ledger.
+   Done when you have a title, authors, a stable id (arXiv / SSRN / DOI), and the sentence that defines the feature.
 
 ### Sources (try in order)
 
@@ -35,7 +36,7 @@ Seed citation / reference URLs (swap `citations` ↔ `references`):
 - Cont OFI — `…/graph/v1/paper/ARXIV:1011.6402/citations?fields=title,abstract,externalIds&limit=20`
 - Gould queue imb — `ARXIV:1512.03492`
 - Albers BTC — `ARXIV:2108.09750`
-- Briola volume LOB — `ARXIV:2211.13777`
+- Lucchese volume LOB — `ARXIV:2211.13777`
 - Sirignano–Cont universal — `ARXIV:1803.06917`
 - Kolm deep OF — SSRN via search, abstract id `3900141` (no arXiv seed)
 Prefer hits with `externalIds.ArXiv` or `openAccessPdf.url`.
@@ -69,7 +70,7 @@ Skip as a first query: Google Scholar (no stable API, paywall noise), NBER (macr
 ```
 # <column>
 
-Paper: <title>, <arXiv:id | SSRN:id | DOI>
+Paper: <title> (<authors>), <arXiv:id | SSRN:id | DOI>
 Formula: <one line>
 Inputs: <our columns> | missing: <field>
 Nearest: `<column in HFT_PAPERS or the experiment log>` | absent

@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from nf_features import FEATURE_SETS, load_day_panel  # noqa: E402
 from run_paper_seq import (  # noqa: E402
     apply_gould_fold,
+    apply_micro_adj_fold,
     apply_stoikov_g1_fold,
     verdict,
     wf_scores,
@@ -31,19 +32,27 @@ BASE_PACK = FEATURE_SETS["hl_resid"]
 
 
 def _materialize_fold(panels: dict, days: list[str], feat: str) -> None:
-    """Write fold-calibrated columns onto each day using expanding past days (min_train=3)."""
-    if feat not in ("stoikov_g1", "gould_ey"):
+    """Write fold-calibrated columns onto each day using expanding past days.
+
+    Day 0 is mapped from itself so early train rows are finite when later OOS
+    folds concat days[:i]; day i≥1 uses only days[:i] as train (no peek).
+    """
+    if feat not in ("stoikov_g1", "micro_adj", "gould_ey"):
         return
+
+    def _apply(tr: pd.DataFrame, te: pd.DataFrame) -> np.ndarray:
+        if feat == "stoikov_g1":
+            return apply_stoikov_g1_fold(tr, te)
+        if feat == "micro_adj":
+            return apply_micro_adj_fold(tr, te)
+        return apply_gould_fold(tr, te)
+
     for i, d in enumerate(days):
-        if i < 3:
-            panels[d][feat] = float("nan")
+        if i == 0:
+            panels[d][feat] = _apply(panels[d], panels[d])
             continue
         tr = pd.concat([panels[x] for x in days[:i]], ignore_index=True)
-        te = panels[d]
-        if feat == "stoikov_g1":
-            panels[d][feat] = apply_stoikov_g1_fold(tr, te)
-        else:
-            panels[d][feat] = apply_gould_fold(tr, te)
+        panels[d][feat] = _apply(tr, panels[d])
 
 
 def main() -> None:

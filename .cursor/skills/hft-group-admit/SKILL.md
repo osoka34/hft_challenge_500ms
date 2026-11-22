@@ -8,7 +8,7 @@ description: >-
 
 # Group admit (pack-add)
 
-Decide if one locked column earns `done` or stays `partial` / becomes `NOT OK`. Uni screen alone does not measure incremental value on `hl_resid`. This skill stops after the pack-add verdict is logged.
+Decide if one locked column earns `done` or stays `partial` / becomes `NOT OK`. Uni screen alone does not measure incremental value on `hl_resid`. Several competing candidates go to `hft-group-select` (forward add). This skill stops after the pack-add verdict is logged.
 
 Gate lives in `scripts/probe_pack_add.py` / `verdict()` in `scripts/run_paper_seq.py`: Δ ≥ 0.003 → OK, ≥ 0.001 → WEAK, else NOT OK. Quote those; do not restate `FEATURE_SETS["hl_resid"]`.
 
@@ -25,7 +25,8 @@ Gate lives in `scripts/probe_pack_add.py` / `verdict()` in `scripts/run_paper_se
    - OK → status `done`
    - WEAK → status `partial`
    - NOT OK → status `NOT OK`
-   Done when `reports/HFT_PAPER_EXPERIMENTS.md` has the block.
+   Also run the close-out checklist in that file (summary row, `HFT_PAPERS.md` status, drop from «Next in queue»).
+   Done when `reports/HFT_PAPER_EXPERIMENTS.md` has the block and close-out is done.
 
 ## Answer shape
 
